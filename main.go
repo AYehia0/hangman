@@ -1,7 +1,15 @@
 package main
 
-import "fmt"
+import (
+	"github.com/AYehia0/hangman/server"
+	"github.com/charmbracelet/log"
+)
 
 func main() {
-	fmt.Println("Hello, darkness my old friend!")
+
+	host := "127.0.0.1"
+	port := 1337 // love me ?
+
+	log.Info("Running the SSH server...")
+	server.Start(host, port)
 }
