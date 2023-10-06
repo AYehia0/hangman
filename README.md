@@ -5,6 +5,9 @@ Play hangman online through SSH!
 
 ## Setup
 
+### Running the server
+To run the server, make sure to `go run .` from the root of the project. Then open another terminal window and `ssh -p 1337 localhost` to connect to it.
+
 ### SSH Configs
 Add the following to your `~/.ssh/config` to avoid having to clear out localhost entries in your `~/.ssh/known_hosts` file:
 ```
