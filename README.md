@@ -18,9 +18,9 @@ Host localhost
 ## TODO
 
 - [X] Create a simple ssh server that you can connect to that returns "Hello, from server!".
-- [ ] Create the game handler middleware!
+- [X] Create the game handler middleware!
 - [ ] Game logic : create the game using bubbletea for single player first!
-- [ ] Game logic : use API for fetching words ?
+- [X] Game logic : use API for fetching words ?
 - [ ] Online multiplayer part : use redis or some database for holding score and other stuff ?
 - [ ] Online multiplayer part : handle many connections ?
 - [ ] Online multiplayer part : room creation for others to join.
