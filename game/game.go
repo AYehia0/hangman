@@ -1,8 +1,10 @@
 package game
 
 import (
+	"fmt"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/log"
@@ -47,7 +49,7 @@ type Game struct {
 	won          bool
 	session      ssh.Session
 	guesses      int
-	currentGuess string
+	currentGuess []byte
 	maxGuesses   int
 	keyboard     map[string]selected
 	model        model
@@ -57,6 +59,7 @@ type model struct {
 	Tabs       []string
 	TabContent []string // change this to include a view
 	ActiveTab  int      // index of the currect active tab
+	TextInput  textinput.Model
 }
 
 func Play(width int, height int, session ssh.Session) Game {
@@ -69,16 +72,27 @@ func Play(width int, height int, session ssh.Session) Game {
 		log.Errorf("Couldn't fetch a word : %s", err)
 	}
 
-	game.word = word
+	game.currentGuess = make([]byte, word.Length)
 	game.session = session
 	game.model.Tabs = []string{"Game", "Results"}
 	game.model.TabContent = []string{"Game Content go here", "Results go here!"}
+
+	// text input
+
+	ti := textinput.New()
+	ti.Placeholder = "Try, Trash!"
+	ti.Focus()
+	ti.CharLimit = 156
+	ti.Width = 20
+
+	game.model.TextInput = ti
 
 	return game
 }
 
 // bubbletea
 func (g Game) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch keypress := msg.String(); keypress {
@@ -91,9 +105,14 @@ func (g Game) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			g.model.ActiveTab = max(g.model.ActiveTab-1, 0)
 			return g, nil
 		}
+		switch msg.Type {
+		case tea.KeyEnter, tea.KeyCtrlC, tea.KeyEsc:
+			return g, tea.Quit
+		}
 	}
+	g.model.TextInput, cmd = g.model.TextInput.Update(msg)
 
-	return g, nil
+	return g, cmd
 }
 
 func (g Game) View() string {
@@ -132,10 +151,11 @@ func (g Game) View() string {
 	gap := tabGap.Render(strings.Repeat(" ", max(0, windowWidth-lipgloss.Width(tabs[0])-2)))
 	row := lipgloss.JoinHorizontal(lipgloss.Bottom, rowTab, gap)
 	doc.WriteString(row + "\n\n")
+	doc.WriteString(fmt.Sprintf("> Word: %s\n%s\n", g.model.TextInput.View(), "(esc to exit)"))
 	return doc.String()
 
 }
 
 func (g Game) Init() tea.Cmd {
-	return nil
+	return textinput.Blink
 }

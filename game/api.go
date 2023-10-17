@@ -13,6 +13,7 @@ type WordDescription struct {
 	Length    int    `json:"numLetters"`
 	Syllables int    `json:"numSyllables"`
 	Hint      string `json:"hint"`
+	Guesses   []string
 }
 
 func GetRandomWord() (WordDescription, error) {
