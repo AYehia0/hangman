@@ -67,16 +67,6 @@ func tabBorderWithBottom(left, middle, right string) lipgloss.Border {
 	return border
 }
 
-var (
-	inactiveTabBorder = tabBorderWithBottom("┴", "─", "┴")
-	activeTabBorder   = tabBorderWithBottom("┘", " ", "└")
-	docStyle          = lipgloss.NewStyle().Padding(1, 2, 1, 2)
-	highlightColor    = lipgloss.AdaptiveColor{Light: "#874BFD", Dark: "#7D56F4"}
-	inactiveTabStyle  = lipgloss.NewStyle().Border(inactiveTabBorder, true).BorderForeground(highlightColor).Padding(0, 1)
-	activeTabStyle    = inactiveTabStyle.Copy().Border(activeTabBorder, true)
-	windowStyle       = lipgloss.NewStyle().BorderForeground(highlightColor).Padding(2, 0).Align(lipgloss.Center).Border(lipgloss.NormalBorder()).UnsetBorderTop()
-)
-
 func Play(width int, height int, session ssh.Session) Game {
 	// create a new game for that player
 	var game Game
@@ -118,35 +108,40 @@ func (g Game) View() string {
 	doc := strings.Builder{}
 	m := g.model
 
-	var renderedTabs []string
+	pty, _, _ := g.session.Pty()
+	windowWidth, _ := pty.Window.Width, pty.Window.Height
 
+	var tabs []string
 	for i, t := range m.Tabs {
-		var style lipgloss.Style
-		isFirst, isLast, isActive := i == 0, i == len(m.Tabs)-1, i == m.ActiveTab
+
+		// activeTab := tab.Copy().Border(activeTabBorder, true)
+		// check with one is active now
+		var tabText string
+		_, _, isActive := i == 0, i == len(m.Tabs)-1, i == m.ActiveTab
 		if isActive {
-			style = activeTabStyle.Copy()
+			tabText = lipgloss.JoinHorizontal(
+				lipgloss.Top,
+				activeTab.Render(t),
+			)
 		} else {
-			style = inactiveTabStyle.Copy()
+			tabText = lipgloss.JoinHorizontal(
+				lipgloss.Top,
+				tab.Render(t),
+			)
 		}
-		border, _, _, _, _ := style.GetBorder()
-		if isFirst && isActive {
-			border.BottomLeft = "│"
-		} else if isFirst && !isActive {
-			border.BottomLeft = "├"
-		} else if isLast && isActive {
-			border.BottomRight = "│"
-		} else if isLast && !isActive {
-			border.BottomRight = "┤"
-		}
-		style = style.Border(border)
-		renderedTabs = append(renderedTabs, style.Render(t))
+
+		tabs = append(tabs, tabText)
 	}
 
-	row := lipgloss.JoinHorizontal(lipgloss.Top, renderedTabs...)
-	doc.WriteString(row)
-	doc.WriteString("\n")
-	doc.WriteString(windowStyle.Width((lipgloss.Width(row) - windowStyle.GetHorizontalFrameSize())).Render(m.TabContent[m.ActiveTab]))
-	return docStyle.Render(doc.String())
+	rowTab := lipgloss.JoinHorizontal(
+		lipgloss.Top,
+		tabs...,
+	)
+	gap := tabGap.Render(strings.Repeat(" ", max(0, windowWidth-lipgloss.Width(tabs[0])-2)))
+	row := lipgloss.JoinHorizontal(lipgloss.Bottom, rowTab, gap)
+	doc.WriteString(row + "\n\n")
+	return doc.String()
+
 }
 
 func (g Game) Init() tea.Cmd {
