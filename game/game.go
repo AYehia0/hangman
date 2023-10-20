@@ -49,7 +49,7 @@ type Game struct {
 	won          bool
 	session      ssh.Session
 	guesses      int
-	currentGuess []byte
+	currentGuess []string
 	maxGuesses   int
 	keyboard     map[string]selected
 	model        model
@@ -72,18 +72,18 @@ func Play(width int, height int, session ssh.Session) Game {
 		log.Errorf("Couldn't fetch a word : %s", err)
 	}
 
-	game.currentGuess = make([]byte, word.Length)
+	game.word = word
+	game.currentGuess = make([]string, word.Length)
 	game.session = session
 	game.model.Tabs = []string{"Game", "Results"}
 	game.model.TabContent = []string{"Game Content go here", "Results go here!"}
 
 	// text input
-
 	ti := textinput.New()
-	ti.Placeholder = "Try, Trash!"
+	ti.Placeholder = "Char"
 	ti.Focus()
-	ti.CharLimit = 156
-	ti.Width = 20
+	ti.CharLimit = 1
+	ti.Width = 10
 
 	game.model.TextInput = ti
 
@@ -96,18 +96,20 @@ func (g Game) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch keypress := msg.String(); keypress {
-		case "ctrl+c":
-			return g, tea.Quit
 		case "right", "tab":
 			g.model.ActiveTab = min(g.model.ActiveTab+1, len(g.model.Tabs)-1)
 			return g, nil
 		case "left", "shift+tab":
 			g.model.ActiveTab = max(g.model.ActiveTab-1, 0)
 			return g, nil
-		}
-		switch msg.Type {
-		case tea.KeyEnter, tea.KeyCtrlC, tea.KeyEsc:
+		case "ctrl+c", "esc":
 			return g, tea.Quit
+		case "enter":
+			// update the word
+			char := g.model.TextInput.Value()
+			g.model.TextInput.Reset()
+			g.tryChar(char)
+			return g, nil
 		}
 	}
 	g.model.TextInput, cmd = g.model.TextInput.Update(msg)
@@ -151,7 +153,26 @@ func (g Game) View() string {
 	gap := tabGap.Render(strings.Repeat(" ", max(0, windowWidth-lipgloss.Width(tabs[0])-2)))
 	row := lipgloss.JoinHorizontal(lipgloss.Bottom, rowTab, gap)
 	doc.WriteString(row + "\n\n")
-	doc.WriteString(fmt.Sprintf("> Word: %s\n%s\n", g.model.TextInput.View(), "(esc to exit)"))
+
+	// display the word
+	// pass the updated word as string to the render function
+	word := lipgloss.NewStyle().Width(10).Align(lipgloss.Center).Render(g.showWord())
+	ui := lipgloss.JoinVertical(lipgloss.Center, word)
+
+	wordBox := lipgloss.Place(windowWidth, 1,
+		lipgloss.Left, lipgloss.Top,
+		wordBoxStyle.Render(ui),
+		lipgloss.WithWhitespaceForeground(subtle),
+	)
+
+	// doc.WriteString(lipgloss.JoinHorizontal(
+	// 	lipgloss.Top,
+	// 	hangmanShape.Width(windowWidth/3).Align(lipgloss.Right).Render("Hangman"),
+	// ))
+
+	doc.WriteString(wordBox + "\n\n")
+	doc.WriteString(fmt.Sprintf("Word: %s\n%s\n", g.model.TextInput.View(), "(esc to exit)"))
+
 	return doc.String()
 
 }
